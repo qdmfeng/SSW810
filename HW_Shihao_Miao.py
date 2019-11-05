@@ -37,43 +37,51 @@ class Repository:
 
     def _analyze_files(self):
         """ populate the summarized data and update students, instructors and majors"""
-        for s in file_reading_gen(os.path.join(self.directory, 'majors.txt'), 3, '\t', True):
-            if any(i.strip() == '' for i in s):
-                raise ValueError('Invalid data in majors.txt')
-            else:
-                if s[0] not in self._major:
-                    self._major[s[0]] = Major(s[0])
-                if s[1] == 'E':
-                    self._major[s[0]].e_courses.append(s[2])
-                elif s[1] == 'R':
-                    self._major[s[0]].r_courses.append(s[2])
+        try:
+            for s in file_reading_gen(os.path.join(self.directory, 'majors.txt'), 3, '\t', True):
+                if any(i.strip() == '' for i in s):
+                    print('Invalid data in majors.txt')
+                else:
+                    if s[0] not in self._major:
+                        self._major[s[0]] = Major(s[0])
+                    if s[1] == 'E':
+                        self._major[s[0]].e_courses.append(s[2])
+                    elif s[1] == 'R':
+                        self._major[s[0]].r_courses.append(s[2])
 
-        for s in file_reading_gen(os.path.join(self.directory, 'students.txt'), 3, ';', True):
-            if s[0].strip() == '':
-                raise ValueError('CWID cannot be None')
-            elif s[2] not in self._major:
-                raise ValueError('Student\'s major does not exist')
-            else:
-                new_student = Student(s[0], s[1], self._major[s[2]])
-                self._students[s[0]] = new_student
+            for s in file_reading_gen(os.path.join(self.directory, 'students.txt'), 3, ';', True):
+                if s[0].strip() == '':
+                    print('CWID cannot be None')
+                    continue
+                elif s[2] not in self._major:
+                    print('Student\'s major does not exist')
+                    continue
+                else:
+                    new_student = Student(s[0], s[1], self._major[s[2]])
+                    self._students[s[0]] = new_student
 
-        for s in file_reading_gen(os.path.join(self.directory, 'instructors.txt'), 3, '|', True):
-            if s[0].strip() == '':
-                raise ValueError('CWID cannot be None')
-            else:
-                new_prof = Instructor(s[0], s[1], s[2])
-                self._instructors[s[0]] = new_prof
+            for s in file_reading_gen(os.path.join(self.directory, 'instructors.txt'), 3, '|', True):
+                if s[0].strip() == '':
+                    print('CWID cannot be None')
+                else:
+                    new_prof = Instructor(s[0], s[1], s[2])
+                    self._instructors[s[0]] = new_prof
 
-        for s in file_reading_gen(os.path.join(self.directory, 'grades.txt'), 4, '|', True):
-            if s[0].strip() == '' or s[3].strip() == '':
-                raise ValueError('CWID cannot be None')
-            elif s[0] not in self._students:
-                raise ValueError('Student does not exist')
-            elif s[3] not in self._instructors:
-                raise ValueError('Instructor does not exist')
-            else:
-                self._students[s[0]].classes_taken[s[1]] = s[2]
-                self._instructors[s[3]].classes_taught[s[1]] += 1
+            for s in file_reading_gen(os.path.join(self.directory, 'grades.txt'), 4, '|', True):
+                if s[0].strip() == '' or s[3].strip() == '':
+                    print('CWID cannot be None')
+                    continue
+                elif s[0] not in self._students:
+                    print('Student does not exist')
+                    continue
+                elif s[3] not in self._instructors:
+                    print('Instructor does not exist')
+                    continue
+                else:
+                    self._students[s[0]].classes_taken[s[1]] = s[2]
+                    self._instructors[s[3]].classes_taught[s[1]] += 1
+        except ValueError as e:
+            print(e)
 
         for st in self._students.values():
             st.update_status()
@@ -95,7 +103,7 @@ class Repository:
 
         ptm = PrettyTable(field_names=['Dept', 'Required', 'Electives'])
         for key, d in self._major.items():
-            ptm.add_row([key, d.r_courses, d.e_courses])
+            ptm.add_row([key, sorted(d.r_courses), sorted(d.e_courses)])
         print(ptm.get_string(title="Major Summary"))
 
 
@@ -109,7 +117,7 @@ class Student:
 
     def update_status(self):
         """update students classes_remain based on classes_taken"""
-        valid_grade = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C']
+        valid_grade = ('A', 'A-', 'B+', 'B', 'B-', 'C+', 'C')
         for c in self.major.r_courses:
             if c not in self.classes_taken or self.classes_taken[c] not in valid_grade:
                 self.classes_remain['R'].append(c)
