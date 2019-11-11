@@ -45,9 +45,9 @@ class Repository:
                     if s[0] not in self._major:
                         self._major[s[0]] = Major(s[0])
                     if s[1] == 'E':
-                        self._major[s[0]].e_courses.append(s[2])
+                        self._major[s[0]].e_courses.add(s[2])
                     elif s[1] == 'R':
-                        self._major[s[0]].r_courses.append(s[2])
+                        self._major[s[0]].r_courses.add(s[2])
 
             for s in file_reading_gen(os.path.join(self.directory, 'students.txt'), 3, ';', True):
                 if s[0].strip() == '':
@@ -82,6 +82,8 @@ class Repository:
                     self._instructors[s[3]].classes_taught[s[1]] += 1
         except ValueError as e:
             print(e)
+        except FileNotFoundError as e:
+            print(e)
 
         for st in self._students.values():
             st.update_status()
@@ -113,24 +115,28 @@ class Student:
         self.name = n
         self.major = m
         self.classes_taken = defaultdict(str)
-        self.classes_remain = defaultdict(list)
+        self.classes_remain = defaultdict(set)
 
     def update_status(self):
         """update students classes_remain based on classes_taken"""
         valid_grade = ('A', 'A-', 'B+', 'B', 'B-', 'C+', 'C')
         for c in self.major.r_courses:
             if c not in self.classes_taken or self.classes_taken[c] not in valid_grade:
-                self.classes_remain['R'].append(c)
-        for c in self.major.e_courses:
-            if c not in self.classes_taken or self.classes_taken[c] not in valid_grade:
-                self.classes_remain['E'].append(c)
+                self.classes_remain['R'].add(c)
+        if (not any(c in self.major.e_courses for c in self.classes_taken.keys())) or all(
+                self.classes_taken[c] not in valid_grade for c in
+                set(self.classes_taken.keys()).intersection(self.major.e_courses)):
+            self.classes_remain['E'] = self.major.e_courses
+        # for c in self.major.e_courses:
+        #     if c not in self.classes_taken or self.classes_taken[c] not in valid_grade:
+        #         self.classes_remain['E'].add(c)
 
 
 class Major:
     def __init__(self, n):
         self.name = n
-        self.r_courses = []
-        self.e_courses = []
+        self.r_courses = set()
+        self.e_courses = set()
 
 
 class Instructor:
