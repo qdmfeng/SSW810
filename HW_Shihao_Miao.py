@@ -5,7 +5,8 @@ by Shihao Miao
 """
 from prettytable import PrettyTable
 import os
-from collections import Counter, defaultdict
+from collections import defaultdict
+import sqlite3
 
 
 def file_reading_gen(path, fields, sep=',', header=False):
@@ -49,7 +50,7 @@ class Repository:
                     elif s[1] == 'R':
                         self._major[s[0]].r_courses.add(s[2])
 
-            for s in file_reading_gen(os.path.join(self.directory, 'students.txt'), 3, ';', True):
+            for s in file_reading_gen(os.path.join(self.directory, 'students.txt'), 3, '\t', True):
                 if s[0].strip() == '':
                     print('CWID cannot be None')
                     continue
@@ -60,14 +61,14 @@ class Repository:
                     new_student = Student(s[0], s[1], self._major[s[2]])
                     self._students[s[0]] = new_student
 
-            for s in file_reading_gen(os.path.join(self.directory, 'instructors.txt'), 3, '|', True):
+            for s in file_reading_gen(os.path.join(self.directory, 'instructors.txt'), 3, '\t', True):
                 if s[0].strip() == '':
                     print('CWID cannot be None')
                 else:
                     new_prof = Instructor(s[0], s[1], s[2])
                     self._instructors[s[0]] = new_prof
 
-            for s in file_reading_gen(os.path.join(self.directory, 'grades.txt'), 4, '|', True):
+            for s in file_reading_gen(os.path.join(self.directory, 'grades.txt'), 4, '\t', True):
                 if s[0].strip() == '' or s[3].strip() == '':
                     print('CWID cannot be None')
                     continue
@@ -108,6 +109,16 @@ class Repository:
             ptm.add_row([key, sorted(d.r_courses), sorted(d.e_courses)])
         print(ptm.get_string(title="Major Summary"))
 
+    def instructor_table_db(self, db_path):
+        DB_FILE = db_path
+        db = sqlite3.connect(DB_FILE)
+        q = "select CWID,name,dept,Course, count(1) as Student from HW11_instructors join HW11_grades on Instructor_CWID=CWID group by name,Course"
+        pti = PrettyTable(field_names=['CWID', 'Name', 'Dept', 'Courses', 'Students'])
+        for row in db.execute(q):
+            pti.add_row(row)
+        print(pti.get_string(title="Instructor Summary"))
+        return pti
+
 
 class Student:
     def __init__(self, id, n, m):
@@ -127,9 +138,6 @@ class Student:
                 self.classes_taken[c] not in valid_grade for c in
                 set(self.classes_taken.keys()).intersection(self.major.e_courses)):
             self.classes_remain['E'] = self.major.e_courses
-        # for c in self.major.e_courses:
-        #     if c not in self.classes_taken or self.classes_taken[c] not in valid_grade:
-        #         self.classes_remain['E'].add(c)
 
 
 class Major:
